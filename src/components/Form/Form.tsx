@@ -1,60 +1,71 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { List } from "../List/List";
+import { useForm, type SubmitHandler } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import axios from "axios";
 
-export interface User {
-  name: string;
-  id?: number;
-  age: number;
-  email: string;
+const API_URL = "http://localhost:4200/notes"; // JSON-сервер
+
+const userSchema = z.object({
+  name: z
+    .string()
+    .min(2, { message: "Name must be at least 2 characters" }),
+  age: z
+    .number()
+    .min(18, { message: "Age must be at least 18" })
+    .max(100, { message: "Age must be at most 100" }),
+  email: z.string().email({ message: "This is not a valid email" }),
+});
+
+export type UserSchema = z.infer<typeof userSchema>;
+
+export interface User extends UserSchema {
+  id: number;
 }
 
-const initialstate = () => {
-  return JSON.parse(localStorage.getItem("users") || "[]");
-};
-
 export function Form() {
-  const [userForm, setUserForm] = useState<User>({ //userState hook saves the information about the user
-    name: "",
-    age: 0,
-    email: "",
+  const [users, setUsers] = useState<User[]>([]); //use state to store array
+
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<UserSchema>({
+    resolver: zodResolver(userSchema),
+    defaultValues: {
+      name: "",
+      age: 0,
+      email: "",
+    },
   });
 
-  const [users, setUsers] = useState<User[]>(initialstate());
+  // GET /users with first uploaddate
+  useEffect(() => {
+    axios.get<User[]>(API_URL)
+      .then(res => setUsers(res.data))
+      .catch(err => console.error("Error fetching users:", err));
+  }, []);
 
-
-  // Function to add a new user, after user submitted the form
-  const addUser = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const newUser: User = {
-      ...userForm,
-      id: Date.now(),
-    };
-
-    const updatedUsers = [...users, newUser];
-    setUsers(updatedUsers);
-    setUserForm({ name: "", age: 0, email: "" });
-    localStorage.setItem("users", JSON.stringify(updatedUsers));
+  // POST /users -- adding a new user in DB
+  const onSubmit: SubmitHandler<UserSchema> = (data) => {
+    axios.post<User>(API_URL, data)
+      .then(res => {
+        setUsers(prev => [...prev, res.data]);
+        reset();
+      })
+      .catch(err => console.error("Error adding user:", err));
   };
 
-  const deleteUser = (id: number): void => {
-    const updatedUsers = users.filter((user) => user.id !== id);
-    setUsers(updatedUsers);
-    localStorage.setItem("users", JSON.stringify(updatedUsers));
-  };
-
-  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = event.target;
-    setUserForm({
-      ...userForm,
-      [name]: name === "age" ? Number(value) : value,
-    });
+  // DELETE /users/:id
+  const deleteUser = (id: number) => {
+    axios.delete(`${API_URL}/${id}`)
+      .then(() => {
+        setUsers(prev => prev.filter(user => user.id !== id));
+      })
+      .catch(err => console.error("Error deleting user:", err));
   };
 
   return (
     <>
       <form
-        onSubmit={addUser}
+        onSubmit={handleSubmit(onSubmit)}
         className="max-w-md mx-auto bg-white shadow-md rounded-lg p-6 space-y-4"
       >
         <div className="flex flex-col">
@@ -62,15 +73,13 @@ export function Form() {
             User name:
           </label>
           <input
-            value={userForm.name}
-            onChange={handleChange}
+            {...register("name")}
             type="text"
             id="name"
-            name="name"
             placeholder="Input your name"
-            required
             className="border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
+          {errors.name && <p className="text-red-500">{errors.name.message}</p>}
         </div>
 
         <div className="flex flex-col">
@@ -78,15 +87,13 @@ export function Form() {
             User age:
           </label>
           <input
-            value={userForm.age}
-            onChange={handleChange}
+            {...register("age", { valueAsNumber: true })} 
             type="number"
             id="age"
-            name="age"
             placeholder="age"
-            required
             className="border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
+          {errors.age && <p className="text-red-500">{errors.age.message}</p>}
         </div>
 
         <div className="flex flex-col">
@@ -94,22 +101,28 @@ export function Form() {
             User email:
           </label>
           <input
-            value={userForm.email}
-            onChange={handleChange}
+            {...register("email")}
             type="email"
             id="email"
-            name="email"
             placeholder="email"
-            required
             className="border border-gray-300 rounded-md p-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
+          {errors.email && <p className="text-red-500">{errors.email.message}</p>}
         </div>
 
         <button
           type="submit"
           className="w-full bg-indigo-600 text-white font-semibold py-2 rounded-md hover:bg-indigo-700 transition-colors"
         >
-          Add user
+          Submit
+        </button>
+
+        <button
+          type="reset"
+          onClick={() => reset()}
+          className="w-full bg-red-600 text-white font-semibold py-2 rounded-md hover:bg-red-700 transition-colors"
+        >
+          Очистити
         </button>
       </form>
 

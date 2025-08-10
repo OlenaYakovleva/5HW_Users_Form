@@ -8,10 +8,10 @@ interface ListProps{
 
 
 export function List({users, deleteUser}: ListProps) {
-  return <div className="grid grid-cols-3 gap-6 mt-5">
+  return <div className="grid grid-cols-4 gap-3 mt-5 bg-amber-300">
   {users.map((user) => (
-    <div key={user.id} className="bg-white shadow-md rounded-lg p-4">
-      <div className="flex flex-col gap-2">
+    <div key={user.id} className="bg-pink-300 shadow-md rounded-lg p-4">
+      <div className="flex flex-col gap-5">
         <div className="flex gap-2">
           <span className="font-medium text-gray-700">Name:</span>
           <span className="text-gray-900">{user.name}</span>
@@ -30,6 +30,7 @@ export function List({users, deleteUser}: ListProps) {
         title="Delete user"
         onClick={() => deleteUser(user.id!)}
       >
+        Delete
         &times;
       </button>
     </div>
